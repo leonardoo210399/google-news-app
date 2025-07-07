@@ -1,82 +1,97 @@
-const express     = require('express');
-const { chromium } = require('playwright');
-const cors        = require('cors');
+import express from 'express';            // make sure "type":"module" is in package.json
+import { chromium } from 'playwright';
+import cors from 'cors';
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
-
+const app = express();
 app.use(cors());
 
-// launch a single browser instance
-let browserPromise = chromium.launch({
-  headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox']
-});
+const SCRAPE_URL = 'https://cointelegraph.com/category/latest-news';
 
-// scrape helper using Playwright
-async function scrapeLatestNews() {
-  const URL = 'https://cointelegraph.com/category/latest-news';
-  const browser = await browserPromise;
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+// helper to scroll to bottom so lazy-loaded cards appear
+async function autoScroll(page) {
+  await page.evaluate(async () => {
+    await new Promise(resolve => {
+      let totalHeight = 0;
+      const distance = 200;
+      const timer = setInterval(() => {
+        const scrollHeight = document.documentElement.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+        if (totalHeight >= scrollHeight){
+          clearInterval(timer);
+          resolve();
+        }
+      }, 100);
+    });
   });
-  const page = await context.newPage();
-
-  try {
-    // first wait for the basic DOM, give up on networkidle if it's too slow
-    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-    // then explicitly wait for the network to calm down, but allow longer
-    await page.waitForLoadState('networkidle', { timeout: 60000 });
-  } catch (e) {
-    console.warn('Initial load/networkidle timed out—continuing anyway');
-  }
-
-  // give lazy-loaded images/scripts extra time
-  await page.waitForTimeout(3000);
-
-  // extract exactly the same fields
-  const articles = await page.$$eval('article.post-card-inline', nodes =>
-    nodes.map(node => {
-      const get = (sel, attr = 'innerText') => {
-        const el = node.querySelector(sel);
-        if (!el) return null;
-        return attr === 'innerText'
-          ? el.innerText.trim()
-          : el.getAttribute(attr);
-      };
-
-      const path = get('.post-card-inline__title-link', 'href') || '';
-      return {
-        url         : path.startsWith('http')
-                        ? path
-                        : 'https://cointelegraph.com' + path,
-        title       : get('.post-card-inline__title-link'),
-        image       : get('img.lazy-image__img','src'),
-        badge       : get('.post-card-inline__badge'),
-        datetime    : get('time','datetime'),
-        timeAgo     : get('time'),
-        author      : get('.post-card-inline__author a'),
-        description : get('.post-card-inline__text')
-      };
-    })
-  );
-
-  await page.close();
-  await context.close();
-  return articles;
 }
 
-app.get('/api/latest-news', async (req, res) => {
+app.get('/scrape-news', async (req, res) => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(45000);
+
   try {
-    const articles = await scrapeLatestNews();
+    await page.goto(SCRAPE_URL, { waitUntil: 'domcontentloaded' });
+    // wait for first batch of cards
+    await page.waitForSelector('article.post-card-inline');
+    // scroll to load any more
+    await autoScroll(page);
+    // little pause for lazy-loaded images/text
+    await page.waitForTimeout(1000);
+
+    const articles = await page.$$eval('article.post-card-inline', cards => {
+      const base = 'https://cointelegraph.com';
+      return cards.map(card => {
+        const idx        = card.getAttribute('data-gtm-index');
+        const figLink    = card.querySelector('a.post-card-inline__figure-link');
+        const titleLink  = card.querySelector('a.post-card-inline__title-link');
+        const img        = card.querySelector('img.lazy-image__img');
+        const titleEl    = card.querySelector('.post-card-inline__title');
+        const summaryEl  = card.querySelector('.post-card-inline__text');
+        const badgeEl    = card.querySelector('.post-card-inline__badge');
+        const timeEl     = card.querySelector('time.post-card-inline__date');
+        const authorA    = card.querySelector('.post-card-inline__author a');
+        const statsItem  = card.querySelector('.post-card-inline__stats-item');
+        // pick second <span> inside stats-item for view count
+        const viewsSpan  = statsItem?.querySelectorAll('span')[1];
+
+        return {
+          index:      idx,
+          articleUrl: figLink?.href   && new URL(figLink.href,  base).href,
+          titleUrl:   titleLink?.href && new URL(titleLink.href,base).href,
+
+          imageUrl:   img?.src,
+          imageAlt:   img?.alt,
+          imageSrcset: img?.getAttribute('srcset'),
+
+          title:      titleEl?.textContent.trim(),
+          summary:    summaryEl?.textContent.trim(),
+          badge:      badgeEl?.textContent.trim(),
+
+          datetime:   timeEl?.getAttribute('datetime'),
+          ago:        timeEl?.textContent.trim(),
+
+          author:     authorA?.textContent.trim(),
+          authorUrl:  authorA?.href && new URL(authorA.href, base).href,
+
+          views:      viewsSpan?.textContent.trim()
+        };
+      });
+    });
+
     res.json(articles);
   } catch (err) {
-    console.error('Error scraping JSON:', err);
-    res.status(500).send('Error scraping latest news');
+    console.error('Scrape failed:', err);
+    res.status(500).send('Scrape timeout or network error');
+  } finally {
+    await browser.close();
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`📡 Backend running at http://localhost:${PORT}`);
+  console.log(`🚀 Listening on port ${PORT}`);
 });
