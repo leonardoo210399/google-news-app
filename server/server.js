@@ -1,14 +1,14 @@
 // server.js
 const express   = require('express');
 const puppeteer = require('puppeteer');
-const cors    = require('cors');
+const cors      = require('cors');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
-// scroll helper
+// scroll helper\
 async function autoScroll(page) {
   await page.evaluate(async () => {
     await new Promise(resolve => {
@@ -27,19 +27,18 @@ async function autoScroll(page) {
   });
 }
 
-// one‐shot scraper function
+// one-shot scraper
 async function scrapeLatestNews(browser) {
   const URL = 'https://cointelegraph.com/category/latest-news';
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
   await page.goto(URL, { waitUntil: 'networkidle2', timeout: 30000 });
 
-  // scroll through to trigger all lazy-loads
+  // scroll through to trigger lazy-loads
   await autoScroll(page);
-  // wait a bit more for images to swap in
   await page.evaluate(() => new Promise(r => setTimeout(r, 3000)));
 
-  // 1) extract articles
+  // extract articles
   const articles = await page.$$eval('article.post-card-inline', nodes =>
     nodes.map(node => {
       const get = (sel, attr = 'innerText') => {
@@ -51,7 +50,7 @@ async function scrapeLatestNews(browser) {
       };
 
       return {
-        url         : "https://cointelegraph.com"+get('.post-card-inline__title-link','href'),
+        url         : 'https://cointelegraph.com' + get('.post-card-inline__title-link','href'),
         title       : get('.post-card-inline__title-link'),
         image       : get('img.lazy-image__img','src'),
         badge       : get('.post-card-inline__badge'),
@@ -64,7 +63,7 @@ async function scrapeLatestNews(browser) {
     })
   );
 
-  // 2) grab the full HTML and add <base>
+  // grab full HTML and inject <base>
   let html = await page.content();
   html = html.replace(
     /<head([^>]*)>/i,
@@ -75,8 +74,10 @@ async function scrapeLatestNews(browser) {
   return { articles, html };
 }
 
-// launch one browser for all requests
-let browserPromise = puppeteer.launch({ args: ['--no-sandbox'] });
+// launch a single browser for all requests
+let browserPromise = puppeteer.launch({
+  args: ['--no-sandbox', '--disable-setuid-sandbox']
+});
 
 app.get('/api/latest-news', async (req, res) => {
   try {
