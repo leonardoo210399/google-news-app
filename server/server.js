@@ -11,13 +11,14 @@ export default async ({ req, res, log }) => {
     log(`[${new Date().toISOString()}] Latest feed: added ${latest.length} new article(s)`);
     log(`[${new Date().toISOString()}] Editors-pick feed: added ${editors.length} new article(s)`);
 
-    res.json({
+    return res.json({
       message: "News fetch completed",
       latestArticles: latest.length,
       editorsPickArticles: editors.length,
     });
   } catch (error) {
     log(`[ERROR] ${error.message}`);
-    res.json({ error: error.message }, 500);
+    return res.json({ error: error.message }, 500);
   }
 };
+
