@@ -1,4 +1,5 @@
 // server/server.js
+
 import { fetchAndStoreLatestNews } from "./services/latestNewsService.js";
 import { fetchAndStoreEditorsPick } from "./services/editorsPickService.js";
 
@@ -16,7 +17,7 @@ export default async ({ req, res, log }) => {
       editorsPickArticles: editors.length,
     });
   } catch (error) {
-    log(`[Error] ${error.message}`);
+    log(`[ERROR] ${error.message}`);
     res.json({ error: error.message }, 500);
   }
 };
