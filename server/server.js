@@ -1,13 +1,22 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import scraperRoutes from './routes/scraper.js';
-import searchRoutes from './routes/search.js';
+// server/server.js
+import { fetchAndStoreLatestNews } from "./services/latestNewsService.js";
+import { fetchAndStoreEditorsPick } from "./services/editorsPickService.js";
 
-const app = express();
-app.use(cors());
-app.use('/', scraperRoutes);
-app.use('/', searchRoutes);
+export default async ({ req, res, log }) => {
+  try {
+    const latest = await fetchAndStoreLatestNews();
+    const editors = await fetchAndStoreEditorsPick();
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Listening on port ${PORT}`));
+    log(`[${new Date().toISOString()}] Latest feed: added ${latest.length} new article(s)`);
+    log(`[${new Date().toISOString()}] Editors-pick feed: added ${editors.length} new article(s)`);
+
+    res.json({
+      message: "News fetch completed",
+      latestArticles: latest.length,
+      editorsPickArticles: editors.length,
+    });
+  } catch (error) {
+    log(`[Error] ${error.message}`);
+    res.json({ error: error.message }, 500);
+  }
+};
