@@ -1,110 +1,87 @@
-import RSSParser from 'rss-parser';
-import {
+// utils/rssParser.js
+import RSSParser from "rss-parser";
+import {findArticleByUrlOrTitle,
   findArticleByUrl,
   createArticle,
-  updateArticle,
-} from '../services/appwriteService.js';
-import {
-  LATEST_COLLECTION_ID,
-  EDITORS_COLLECTION_ID,
-} from '../config/appwrite.js';
-
-// RSS feed URLs
-const RSS_URLS = {
-  latest: 'https://cointelegraph.com/rss',
-  editorsPick: 'https://cointelegraph.com/editors_pick_rss',
-};
+} from "../services/appwriteService.js";
+import Article from "../models/Article.js";
+import { normalizeUrl } from "./urlUtils.js";
 
 const parser = new RSSParser({
   customFields: {
     item: [
-      ['media:content', 'mediaContent'],
-      ['category', 'categories'],
+      ["media:content", "mediaContent"],
+      ["category", "categories"],
+      ["content:encoded", "contentEncoded"],
     ],
   },
 });
 
-/**
- * Fetches XML from a URL using a browser-style User-Agent, then returns it as text.
- */
+export async function processFeed(url, collectionId) {
+  if (!url) throw new Error("RSS URL is not defined");
+  const xml = await fetchFeedXml(url);
+  const feed = await parser.parseString(xml);
+  const created = [];
+
+  for (const item of feed.items) {
+    const titleUrl = normalizeUrl(item.link || "");
+    if (!titleUrl) continue;
+
+    // 1. Skip if already in DB
+    const existing = await findArticleByUrlOrTitle(
+      titleUrl,
+      item.title?.trim(),
+      collectionId
+    );
+    if (existing) {
+      // console.warn("⏱ checking", titleUrl, "exists?", !!existing);
+      continue;
+    }
+
+    // 2. Build Article model
+    const rawFetched = new Date().toISOString();
+    const datetime = item.pubDate
+      ? new Date(item.pubDate).toISOString()
+      : rawFetched;
+
+    const media = Array.isArray(item.mediaContent)
+      ? item.mediaContent[0]
+      : item.mediaContent;
+    const imageUrl = media?.["$"]?.url || null;
+
+    const article = new Article({
+      title: item.title?.trim() || "",
+      titleUrl,
+      summary: item.contentSnippet?.trim() || "",
+      description: item.contentEncoded?.trim() || item.content?.trim() || "",
+      imageUrl,
+      categories: Array.isArray(item.categories)
+        ? item.categories.map((c) => c.trim())
+        : item.categories
+        ? [item.categories.trim()]
+        : [],
+      author: item.creator || item.author || "",
+      rawDatetime: rawFetched,
+      datetime,
+    });
+
+    // 3. Store and record
+    const createdDoc = await createArticle(article, collectionId);
+    created.push(createdDoc);
+  }
+
+  return created;
+}
+
 async function fetchFeedXml(url) {
   const res = await fetch(url, {
     headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-        '(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/115.0.0.0 Safari/537.36",
     },
   });
-  if (!res.ok) throw new Error(`Fetch error ${res.status}`);
+  if (!res.ok) throw new Error(`Fetch error ${res.status} from ${url}`);
   return res.text();
-}
-
-/**
- * Parses and upserts articles from the given RSS URL into the specified collection.
- */
-async function processFeed(url, collectionId) {
-  const xml = await fetchFeedXml(url);
-  const feed = await parser.parseString(xml);
-  const added = [];
-
-  for (const item of feed.items) {
-    const raw = {
-      title:       item.title?.trim()       || '',
-      titleUrl:    item.link                || '',
-      summary:     item.contentSnippet?.trim() || '',
-      description: item.content?.trim()     || '',
-      imageUrl:    item.enclosure?.url      || item.mediaContent?.url || null,
-      categories:  Array.isArray(item.categories)
-                    ? item.categories.map(c => c.trim())
-                    : item.categories
-                    ? [item.categories.trim()]
-                    : [],
-      author:      item.creator || item.author || '',
-      rawDatetime: item.isoDate || null,
-      datetime:    item.isoDate || new Date().toISOString(),
-    };
-
-    // Check if the article exists in target collection
-    const existing = await findArticleByUrl(raw.titleUrl, collectionId);
-    if (!existing) {
-      // New: simply create
-      await createArticle(raw, collectionId);
-      added.push(raw);
-    } else {
-      // Exists: merge missing fields from latest collection
-      const latest = await findArticleByUrl(raw.titleUrl, LATEST_COLLECTION_ID);
-      const updated = {};
-
-      // For each key in raw, if missing or empty, fill from latest
-      for (const key of Object.keys(raw)) {
-        const value = raw[key];
-        const isEmpty =
-          value === null ||
-          value === '' ||
-          (Array.isArray(value) && value.length === 0);
-        if (isEmpty && latest && latest[key] !== undefined) {
-          updated[key] = latest[key];
-        }
-      }
-
-      // If any fields to update, perform update
-      if (Object.keys(updated).length) {
-        await updateArticle(existing.$id, updated, collectionId);
-      }
-    }
-  }
-
-  console.log(
-    `Processed ${collectionId}: added ${added.length} new articles`
-  );
-  return added;
-}
-
-// Public APIs
-export async function fetchAndStore() {
-  return processFeed(RSS_URLS.latest, LATEST_COLLECTION_ID);
-}
-
-export async function fetchEditorsPickAndStore() {
-  return processFeed(RSS_URLS.editorsPick, EDITORS_COLLECTION_ID);
 }

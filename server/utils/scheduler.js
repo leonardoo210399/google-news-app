@@ -1,20 +1,36 @@
-import { fetchAndStore, fetchEditorsPickAndStore } from './rssParser.js';
+// server/utils/scheduler.js
 
-const FETCH_INTERVAL = 1 * 60 * 1000; // 5 minutes
+import { fetchAndStoreLatestNews } from '../services/latestNewsService.js';
+import { fetchAndStoreEditorsPick } from '../services/editorsPickService.js';
+
+// Run fetches every 5 minutes
+const FETCH_INTERVAL = 1*  60 * 1000;
+
+function logFetch(promise, label) {
+  promise
+    .then(created => {
+      console.log(
+        `[${new Date().toISOString()}] ${label}: added ${created.length} new article(s)`
+      );
+    })
+    .catch(err => {
+      console.error(
+        `[${new Date().toISOString()}] ${label} fetch error:`,
+        err
+      );
+    });
+}
 
 export default {
   start() {
     // Initial fetches
-    fetchAndStore().catch((err) => console.error('Initial latest fetch failed:', err));
-    fetchEditorsPickAndStore().catch((err) => console.error('Initial editors pick fetch failed:', err));
+    logFetch(fetchAndStoreLatestNews(), 'Latest feed');
+    logFetch(fetchAndStoreEditorsPick(), 'Editors-pick feed');
 
-    // Schedule periodic fetches
+    // Scheduled fetches
     setInterval(() => {
-      console.log(`Scheduled latest fetch at ${new Date().toISOString()}`);
-      fetchAndStore().catch((err) => console.error('Scheduled latest fetch failed:', err));
-
-      console.log(`Scheduled editors pick fetch at ${new Date().toISOString()}`);
-      fetchEditorsPickAndStore().catch((err) => console.error('Scheduled editors pick fetch failed:', err));
+      logFetch(fetchAndStoreLatestNews(), 'Latest feed');
+      logFetch(fetchAndStoreEditorsPick(), 'Editors-pick feed');
     }, FETCH_INTERVAL);
-  }
+  },
 };
