@@ -1,17 +1,28 @@
 {
-  "extends": "expo/tsconfig.base",
+  // point directly at Expo’s shipped base config
+  "extends": "./node_modules/expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
+    // allow you to import .js/.jsx alongside .ts/.tsx
+    "allowJs": true,
+    "jsx": "react-jsx",
+    // keep your alias
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
   "include": [
+    // TS/TSX
     "**/*.ts",
     "**/*.tsx",
+    // JS/JSX
+    "**/*.js",
+    "**/*.jsx",
+    // Expo‐generated types
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "app/_layout.jsx"  ]
+    // env file for Expo
+    "expo-env.d.ts",
+    // bring in any top‐level layouts you’re mixing in
+    "app/_layout.jsx"
+  ]
 }
