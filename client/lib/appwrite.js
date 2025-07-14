@@ -104,3 +104,86 @@ export async function searchArticles(term) {
   );
   return res.documents;
 }
+
+export async function saveBookmark(articleId, user) {
+  // 1. grab whatever’s in user.articlesBookmarked
+  const raw = user.articlesBookmarked || [];
+console.log(raw);
+
+  // 2. normalize everything to just IDs
+  const currentIds = raw.map(item =>
+    typeof item === 'string'
+      ? item
+      : item.$id || item.id || ''      // adjust if your ID field is named differently
+  ).filter(id => id);                   // drop any falsy entries
+
+  console.log('existing bookmark IDs:', currentIds);
+
+  // 3. if it’s not already bookmarked, add it
+  const updatedIds = currentIds.includes(articleId)
+    ? currentIds
+    : [...currentIds, articleId];
+
+  console.log('updated bookmark IDs:', updatedIds);
+
+  // 4. write back just the array of strings
+  const res = await databases.updateDocument(
+    appwriteConfig.databaseId,
+    appwriteConfig.userCollectionId,
+    user.$id,
+    { articlesBookmarked: updatedIds }
+  );
+
+  return res;
+}
+
+
+/** Remove an article from the current user’s bookmarks */
+export async function removeBookmark(articleId, user) {
+
+  // 1. grab the raw bookmark list
+  const raw = user.articlesBookmarked || [];
+  console.log(raw);
+  
+
+  // 2. normalize to IDs only
+  const currentIds = raw
+    .map(item =>
+      typeof item === 'string'
+        ? item
+        : item.$id || item.id || ''    // adjust if your ID field is named differently
+    )
+    .filter(id => id);                // drop any falsy values
+
+  console.log('existing bookmark IDs:', currentIds);
+
+  // 3. filter out the one to remove
+  const updatedIds = currentIds.filter(id => id !== articleId);
+
+  console.log('updated bookmark IDs:', updatedIds);
+
+  // 4. persist only the array of strings
+  const res = await databases.updateDocument(
+    appwriteConfig.databaseId,
+    appwriteConfig.userCollectionId,
+    user.$id,
+    { articlesBookmarked: updatedIds }
+  );
+
+  return res;
+}
+
+
+/** Fetch the articles bookmarked by the current user */
+export async function fetchBookmarkedArticles(limit = 50, offset = 0) {
+  const user = await getCurrentUser();
+  if (!user?.bookmarks?.length) return [];
+  const res = await databases.listDocuments(
+    appwriteConfig.databaseId,
+    appwriteConfig.latestCollectionId,
+    [Query.equal("$id", user.bookmarks)],
+    limit,
+    offset
+  );
+  return res.documents;
+}

@@ -57,22 +57,23 @@ const ArticleCard = ({ item }) => {
             onPress={() => router.push(`/raw/${payload}`)}
             className="px-2 py-1 border border-secondary rounded"
           >
-            <Text className="text-xs font-pmedium text-secondary">
-              Read
-            </Text>
+            <Text className="text-xs font-pmedium text-secondary">Read</Text>
           </TouchableOpacity>
         </View>
 
         {categories.length > 0 && (
           <View className="flex-row flex-wrap mt-2">
-            {categories.map((cat) => (
-              <View
-                key={cat}
-                className="mr-2 mb-1 px-2 py-1 bg-gray-800 rounded"
-              >
-                <Text className="text-xs text-gray-300">{cat}</Text>
-              </View>
-            ))}
+            {categories.map(
+              (cat, i) =>
+                (
+                  <View
+                    key={`${cat}-${i}`}
+                    className="mr-2 mb-1 px-2 py-1 bg-gray-800 rounded"
+                  >
+                    <Text className="text-xs text-gray-300">{cat}</Text>
+                  </View>
+                )
+            )}
           </View>
         )}
       </View>

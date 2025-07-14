@@ -13,22 +13,68 @@ import * as Speech from "expo-speech";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
+import {
+  saveBookmark as addBookmark,
+  removeBookmark as deleteBookmark,
+  getCurrentUser,
+} from "@/lib/appwrite";
+import { useGlobalContext } from "@/context/GlobalProvider";
+
 export default function ArticleDetail() {
+  const { user, setUser } = useGlobalContext();
+
   const { payload } = useLocalSearchParams();
   const item = JSON.parse(payload);
   const router = useRouter();
 
-  // Bookmark state and handlers (assumes these come from context or props)
   const [bookmark, setBookmark] = useState(false);
-  const saveBookmark = (id) => {
-    // implement save logic
-    setBookmark(true);
-  };
-  const removeBookmark = (id) => {
-    // implement remove logic
-    setBookmark(false);
-  };
+// Re-run on focus, normalize to ID strings
+  useFocusEffect(
+    useCallback(() => {
+      const bookmarkedIds = Array.isArray(user?.articlesBookmarked)
+        ? user.articlesBookmarked.map(el =>
+            typeof el === "string" ? el : el.$id || el.id
+          )
+        : [];
+      setBookmark(bookmarkedIds.includes(item.$id));
+    }, [user?.articlesBookmarked, item.$id])
+  );
 
+   const toggleBookmark = () => {
+    const willBeBookmarked = !bookmark;
+    setBookmark(willBeBookmarked);
+
+    if (willBeBookmarked) {
+      // fire-and-forget add
+      addBookmark(item.$id, user)
+        .then(updatedDoc => {
+          // sync global user
+          setUser({
+            ...user,
+            articlesBookmarked: updatedDoc.articlesBookmarked,
+          });
+        })
+        .catch(err => {
+          console.warn("Failed to save bookmark:", err);
+          // rollback UI
+          setBookmark(false);
+        });
+    } else {
+      // fire-and-forget remove
+      deleteBookmark(item.$id, user)
+        .then(updatedDoc => {
+          setUser({
+            ...user,
+            articlesBookmarked: updatedDoc.articlesBookmarked,
+          });
+        })
+        .catch(err => {
+          console.warn("Failed to remove bookmark:", err);
+          setBookmark(true);
+        });
+    }
+  };
+  // Article & TTS state
   const [loading, setLoading] = useState(true);
   const [article, setArticle] = useState({
     authorName: "",
@@ -49,19 +95,19 @@ export default function ArticleDetail() {
 
   // Cleanup on blur/unmount
   useFocusEffect(
-    useCallback(() => {
-      return () => {
+    useCallback(
+      () => () => {
         Speech.stop();
         if (timerRef.current) clearTimeout(timerRef.current);
-      };
-    }, [])
+      },
+      []
+    )
   );
 
-  // Estimate reading duration at ~150 wpm, return ms
+  // Helpers
   const estimateDurationMs = (text) => {
     const words = text.trim().split(/\s+/).length;
-    const ms = Math.ceil((words / 150) * 60 * 1000);
-    return ms;
+    return Math.ceil((words / 150) * 60 * 1000);
   };
 
   const formatMillis = (ms) => {
@@ -71,10 +117,10 @@ export default function ArticleDetail() {
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  // Split text into sentence-like chunks for TTS
   const chunkText = (text) =>
     text.split(/(?<=[.?!])\s+/).filter((c) => c.length > 0);
 
+  // Fetch & parse article HTML
   useEffect(() => {
     (async () => {
       try {
@@ -82,7 +128,7 @@ export default function ArticleDetail() {
         const html = await res.text();
         await new Promise((r) => setTimeout(r, 500));
 
-        // Extract <article>
+        // Extract <article> snippet
         const bodyStart = html.indexOf("<body");
         const bodyOpen = html.indexOf(">", bodyStart);
         const bodyEnd = html.indexOf("</body>");
@@ -93,33 +139,42 @@ export default function ArticleDetail() {
         const start = body.indexOf('<article id="article-');
         const endTag = "</article>";
         const end = body.indexOf(endTag, start) + endTag.length;
-        const snippet = start > -1 && end > start ? body.substring(start, end) : body;
+        const snippet =
+          start > -1 && end > start ? body.substring(start, end) : body;
         const root = parse(snippet);
 
         // Metadata
-        const authorName = root.querySelector(".post-meta__author-name")?.text.trim() || "";
+        const authorName =
+          root.querySelector(".post-meta__author-name")?.text.trim() || "";
         let authorAvatar = null;
         root.querySelectorAll("img").forEach((img) => {
           if (
             !authorAvatar &&
-            img.parentNode?.attributes.class?.includes("post-meta__author-avatar")
+            img.parentNode?.attributes.class?.includes(
+              "post-meta__author-avatar"
+            )
           ) {
             authorAvatar = img.attributes.src;
           }
         });
         let publishedAt = null;
         root.querySelectorAll("time").forEach((t) => {
-          if (!publishedAt && t.attributes.datetime) publishedAt = t.attributes.datetime;
+          if (!publishedAt && t.attributes.datetime)
+            publishedAt = t.attributes.datetime;
         });
-        const title = (root.querySelector("h1.post__title")?.text.trim() || "") + ".";
-        const lead = root.querySelector(".post__block_lead-text p")?.text.trim() || "";
-        const coverImage = root.querySelector(".post-cover__image img")?.attributes.src || "";
+        const title =
+          (root.querySelector("h1.post__title")?.text.trim() || "") + ".";
+        const lead =
+          root.querySelector(".post__block_lead-text p")?.text.trim() || "";
+        const coverImage =
+          root.querySelector(".post-cover__image img")?.attributes.src || "";
         let views = "";
         root.querySelectorAll("span").forEach((sp) => {
-          if (sp.attributes["data-testid"] === "post-views") views = sp.text.trim();
+          if (sp.attributes["data-testid"] === "post-views")
+            views = sp.text.trim();
         });
 
-        // Content
+        // Content blocks
         const content = [];
         const pcNode = root.querySelector(".post-content");
         pcNode?.childNodes.forEach((node) => {
@@ -158,8 +213,7 @@ export default function ArticleDetail() {
         });
 
         // Prepare TTS chunks
-        const chunks = chunkText(fullText);
-        setTtsChunks(chunks);
+        setTtsChunks(chunkText(fullText));
         chunkIndexRef.current = 0;
       } catch (e) {
         console.warn("Failed to load article:", e);
@@ -169,46 +223,32 @@ export default function ArticleDetail() {
     })();
   }, [item.titleUrl]);
 
-  // Speak the next TTS chunk, using utteranceId + onDone
+  // TTS playback
   const speakNextChunk = () => {
     const idx = chunkIndexRef.current;
-    console.log(`▶️ speakNextChunk called, idx = ${idx}`);
-
     if (idx < ttsChunks.length) {
       const text = ttsChunks[idx];
-      console.log(`🗣️ speaking chunk[${idx}]:`, text);
-
       Speech.speak(text, {
         utteranceId: `chunk-${idx}`,
         onDone: (id) => {
-          console.log(`✅ onDone utterance ${id}`);
           if (!isTtsPausedRef.current) {
             chunkIndexRef.current += 1;
-            console.log(`🔜 incremented idx to ${chunkIndexRef.current}`);
             speakNextChunk();
-          } else {
-            console.log(`⏸ playback paused after utterance ${id}`);
           }
         },
-        onError: (err) => {
-          console.warn("❌ TTS error:", err);
-        },
+        onError: (err) => console.warn("TTS error:", err),
       });
     } else {
-      console.log("🏁 all chunks done");
       setIsPlaying(false);
     }
   };
 
-  // Play/pause toggle for TTS, with logging
   const handleListen = () => {
     if (isPlaying) {
-      console.log(`⏸ handleListen(): pausing at chunk ${chunkIndexRef.current}`);
       isTtsPausedRef.current = true;
       Speech.stop();
       setIsPlaying(false);
     } else {
-      console.log(`▶️ handleListen(): resuming at chunk ${chunkIndexRef.current}`);
       isTtsPausedRef.current = false;
       setIsPlaying(true);
       speakNextChunk();
@@ -227,7 +267,7 @@ export default function ArticleDetail() {
     <>
       <Stack.Screen
         options={{
-            headerStyle: { backgroundColor: "#161622" },
+          headerStyle: { backgroundColor: "#161622" },
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={22} color="#CDCDE0" />
@@ -235,16 +275,12 @@ export default function ArticleDetail() {
           ),
           headerRight: () => (
             <TouchableOpacity
-              onPress={() =>
-                bookmark
-                  ? removeBookmark(news[0].article_id)
-                  : saveBookmark(news[0].article_id)
-              }
+          onPress={toggleBookmark}
             >
               <Ionicons
                 name={bookmark ? "heart" : "heart-outline"}
                 size={22}
-                color={bookmark ? "#FF9C01" : "#CDCDE0"}
+                color={bookmark ? "red" : "#CDCDE0"}
               />
             </TouchableOpacity>
           ),
@@ -278,7 +314,7 @@ export default function ArticleDetail() {
           {article.lead}
         </Text>
 
-        {/* Listen button */}
+        {/* Listen button & views */}
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity
             onPress={handleListen}
@@ -304,7 +340,7 @@ export default function ArticleDetail() {
           />
         )}
 
-        {/* Content */}
+        {/* Content blocks */}
         {article.content.map((block, idx) =>
           block.type === "text" ? (
             <Text
