@@ -37,7 +37,7 @@ const Home = () => {
         keyExtractor={(item) => item.$id}
         renderItem={({ item }) => <ArticleCard item={item} />}
         ListHeaderComponent={() => (
-          <View className="my-6 px-4 space-y-6">
+          <View className="my-6 px-4 space-y-1">
             <View className="flex-row justify-between items-start mb-6">
               <View>
                 <Text className="font-pmedium text-sm text-gray-100">
@@ -54,13 +54,17 @@ const Home = () => {
               />
             </View>
 
-            <SearchInput />
-
-            <View className="pt-5 pb-8">
+            <View className="">
               <Text className="text-lg font-pregular text-gray-100 mb-3">
                 Editor's Choice
               </Text>
               <Trending posts={latestPosts ?? []} />
+            </View>
+            {/* NEW: Latest Articles Heading */}
+            <View>
+              <Text className="text-lg font-psemibold text-white">
+                Latest Articles
+              </Text>
             </View>
           </View>
         )}
