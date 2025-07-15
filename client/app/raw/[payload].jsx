@@ -28,11 +28,11 @@ export default function ArticleDetail() {
   const router = useRouter();
 
   const [bookmark, setBookmark] = useState(false);
-// Re-run on focus, normalize to ID strings
+  // Re-run on focus, normalize to ID strings
   useFocusEffect(
     useCallback(() => {
       const bookmarkedIds = Array.isArray(user?.articlesBookmarked)
-        ? user.articlesBookmarked.map(el =>
+        ? user.articlesBookmarked.map((el) =>
             typeof el === "string" ? el : el.$id || el.id
           )
         : [];
@@ -40,21 +40,21 @@ export default function ArticleDetail() {
     }, [user?.articlesBookmarked, item.$id])
   );
 
-   const toggleBookmark = () => {
+  const toggleBookmark = () => {
     const willBeBookmarked = !bookmark;
     setBookmark(willBeBookmarked);
 
     if (willBeBookmarked) {
       // fire-and-forget add
       addBookmark(item.$id, user)
-        .then(updatedDoc => {
+        .then((updatedDoc) => {
           // sync global user
           setUser({
             ...user,
             articlesBookmarked: updatedDoc.articlesBookmarked,
           });
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn("Failed to save bookmark:", err);
           // rollback UI
           setBookmark(false);
@@ -62,13 +62,13 @@ export default function ArticleDetail() {
     } else {
       // fire-and-forget remove
       deleteBookmark(item.$id, user)
-        .then(updatedDoc => {
+        .then((updatedDoc) => {
           setUser({
             ...user,
             articlesBookmarked: updatedDoc.articlesBookmarked,
           });
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn("Failed to remove bookmark:", err);
           setBookmark(true);
         });
@@ -257,9 +257,23 @@ export default function ArticleDetail() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-primary">
-        <ActivityIndicator color="#FF9C01" />
-      </View>
+      <>
+        <Stack.Screen
+          options={{
+            headerStyle: { backgroundColor: "#161622" },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={22} color="#CDCDE0" />
+              </TouchableOpacity>
+            ),
+            
+            title: "",
+          }}
+        />
+        <View className="flex-1 justify-center items-center bg-primary">
+          <ActivityIndicator size={"large"} color="#FF9C01" />
+        </View>
+      </>
     );
   }
 
@@ -274,9 +288,7 @@ export default function ArticleDetail() {
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity
-          onPress={toggleBookmark}
-            >
+            <TouchableOpacity onPress={toggleBookmark}>
               <Ionicons
                 name={bookmark ? "heart" : "heart-outline"}
                 size={22}

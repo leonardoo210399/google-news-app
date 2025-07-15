@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 
 const ArticleCard = ({ item }) => {
   const router = useRouter();
-  // Destructure fields directly from item
   const {
     titleUrl,
     title,
@@ -17,23 +16,27 @@ const ArticleCard = ({ item }) => {
   } = item;
 
   const publishedAt = new Date(datetime).toLocaleDateString();
-  // encode the entire item as a URL-safe string
   const payload = encodeURIComponent(JSON.stringify(item));
 
+  // handler for tapping the card
+  const goToDetail = () => {
+    router.push(`/raw/${payload}`);
+  };
+
   return (
-    <View className="px-4 mb-8">
-      {/* Article thumbnail still opens externally */}
-      <TouchableOpacity
-        onPress={() => Linking.openURL(titleUrl)}
-        className="w-full h-60 rounded-xl overflow-hidden"
-        activeOpacity={0.8}
-      >
+    <TouchableOpacity
+      onPress={goToDetail}
+      activeOpacity={0.8}
+      className="px-4 mb-8 bg-gray-900 rounded-xl overflow-hidden"
+    >
+      {/* Thumbnail still opens externally if tapped */}
+      <View className="w-full h-60">
         <Image
           source={{ uri: imageUrl }}
-          className="w-full h-full"
+          className="w-full h-full rounded-xl overflow-hidden"
           resizeMode="cover"
         />
-      </TouchableOpacity>
+      </View>
 
       {/* Article details */}
       <View className="mt-3">
@@ -53,31 +56,22 @@ const ArticleCard = ({ item }) => {
           <Text className="text-xs font-pregular text-gray-400">
             {author} • {publishedAt}
           </Text>
-          <TouchableOpacity
-            onPress={() => router.push(`/raw/${payload}`)}
-            className="px-2 py-1 border border-secondary rounded"
-          >
-            <Text className="text-xs font-pmedium text-secondary">Read</Text>
-          </TouchableOpacity>
         </View>
 
         {categories.length > 0 && (
           <View className="flex-row flex-wrap mt-2">
-            {categories.map(
-              (cat, i) =>
-                (
-                  <View
-                    key={`${cat}-${i}`}
-                    className="mr-2 mb-1 px-2 py-1 bg-gray-800 rounded"
-                  >
-                    <Text className="text-xs text-gray-300">{cat}</Text>
-                  </View>
-                )
-            )}
+            {categories.map((cat, i) => (
+              <View
+                key={`${cat}-${i}`}
+                className="mr-2 mb-1 px-2 py-1 bg-gray-800 rounded"
+              >
+                <Text className="text-xs text-gray-300">{cat}</Text>
+              </View>
+            ))}
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

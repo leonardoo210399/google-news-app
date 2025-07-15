@@ -187,3 +187,30 @@ export async function fetchBookmarkedArticles(limit = 50, offset = 0) {
   );
   return res.documents;
 }
+
+
+export function searchPosts(
+  query = '',
+  offset = 0,
+  limit = 10
+) {
+  const filters = [];
+
+  // full-text search on title if non-empty
+  if (query.trim()) {
+    filters.push(Query.search('title', query.trim()));
+  }
+
+  // newest first
+  filters.push(Query.orderDesc('$createdAt'));
+
+  // pagination
+  filters.push(Query.limit(limit));
+  filters.push(Query.offset(offset));
+
+  return databases.listDocuments(
+    appwriteConfig.databaseId,
+    appwriteConfig.latestCollectionId,
+    filters
+  );
+}

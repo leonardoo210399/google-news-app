@@ -1,11 +1,17 @@
 // BreakingNewsCard.jsx
 import React from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format, parseISO } from 'date-fns';
+import { useRouter } from 'expo-router';
 
 
-const BreakingNewsCard = ({ item }) => (
-  <View style={styles.container}>
+const BreakingNewsCard = ({ item }) => {
+    const payload = encodeURIComponent(JSON.stringify(item));
+    const router = useRouter();
+ return <TouchableOpacity 
+    onPress={() => router.push(`/raw/${payload}`)}
+    activeOpacity={0.8}
+ style={styles.container}>
     <Image source={{ uri: item.imageUrl }} style={styles.image} />
     <View style={styles.info}>
       <Text style={styles.title} numberOfLines={2}>
@@ -15,8 +21,8 @@ const BreakingNewsCard = ({ item }) => (
         {format(parseISO(item.datetime), "yyyy-MM-dd HH:mm")}
       </Text>
     </View>
-  </View>
-);
+  </TouchableOpacity>
+};
 
 export default BreakingNewsCard;
 

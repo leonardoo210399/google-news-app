@@ -14,7 +14,9 @@ const TabIcon = ({ icon, color, name, focused }) => {
         className="w-6 h-6"
       />
       <Text
-        className={`${focused ? "font-psemibold" : "font-pregular"} text-xs`}
+        className={`${
+          focused ? "font-psemibold" : "font-pregular"
+        } text-xs items-center justify-center`}
         style={{ color: color }}
       >
         {name}
@@ -35,8 +37,16 @@ const TabsLayout = () => {
             backgroundColor: "#161622",
             borderTopWidth: 1,
             borderTopColor: "#232533",
-            height: 84,
+            height: 75,
           },
+          tabBarHideOnKeyboard: true,
+          // ensure content doesn't go under the tab bar
+          sceneContainerStyle: {
+            paddingBottom: 80,
+            backgroundColor: "#fff", // or your screen bg color
+          },
+          // disable safe area adjustment
+          safeAreaInsets: { bottom: 100, top: 0, left: 0, right: 0 },
         }}
       >
         <Tabs.Screen
@@ -71,15 +81,30 @@ const TabsLayout = () => {
         />
 
         <Tabs.Screen
-          name="create"
+          name="search"
           options={{
-            title: "Create",
+            title: "Search Article",
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <TabIcon
-                icon={icons.plus}
+                icon={icons.search}
                 color={color}
-                name="Create"
+                name="Search Article"
+                focused={focused}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="web-search"
+          options={{
+            title: "web-search",
+            headerShown: false,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                icon={icons.search}
+                color={color}
+                name="Internet Search"
                 focused={focused}
               />
             ),
