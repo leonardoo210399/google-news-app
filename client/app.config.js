@@ -3,6 +3,7 @@ import 'dotenv/config';
 
 export default {
   expo: {
+    owner:"aditya210399",
     name: "Crypto News",
     slug: "crypto-news",
     version: "1.0.0",
@@ -38,7 +39,7 @@ export default {
     },
     extra: {
       eas: {
-        projectId: "c58735db-ee7a-4528-9698-adb4b4a93155"
+        projectId: "4b5ba09f-c3f2-43f2-af93-479360c4a2e6"
       },
       // Appwrite
       APPWRITE_ENDPOINT: process.env.APPWRITE_ENDPOINT,
