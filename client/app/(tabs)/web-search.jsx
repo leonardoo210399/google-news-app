@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import xml2js from "xml2js";
+import xml2js from "react-native-xml2js";
 import { useRouter } from "expo-router";
 
 import EmptyState from "../../components/EmptyState";

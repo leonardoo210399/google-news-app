@@ -14,9 +14,7 @@ const TabIcon = ({ icon, color, name, focused }) => {
         className="w-6 h-6"
       />
       <Text
-        className={`${
-          focused ? "font-psemibold" : "font-pregular"
-        } text-xs items-center justify-center`}
+        className={`${focused ? "font-psemibold" : "font-pregular"} text-xs`}
         style={{ color: color }}
       >
         {name}
@@ -37,16 +35,8 @@ const TabsLayout = () => {
             backgroundColor: "#161622",
             borderTopWidth: 1,
             borderTopColor: "#232533",
-            height: 75,
+            height: 84,
           },
-          tabBarHideOnKeyboard: true,
-          // ensure content doesn't go under the tab bar
-          sceneContainerStyle: {
-            paddingBottom: 80,
-            backgroundColor: "#fff", // or your screen bg color
-          },
-          // disable safe area adjustment
-          safeAreaInsets: { bottom: 100, top: 0, left: 0, right: 0 },
         }}
       >
         <Tabs.Screen

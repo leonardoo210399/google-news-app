@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Crypto News",
+    "slug": "crypto-news",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "assets/images/profile.png",
+    "scheme": "crypto-news",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "assets/1.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.crypto.news"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.crypto.news"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4b5ba09f-c3f2-43f2-af93-479360c4a2e6"
+      }
+    }
+  }
+}

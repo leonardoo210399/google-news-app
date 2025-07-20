@@ -3,13 +3,13 @@ import { Client, Avatars,Account, Databases, ID, Query } from "react-native-appw
 import Constants from "expo-constants";
 
 export const appwriteConfig = {
-  endpoint: Constants.expoConfig.extra.APPWRITE_ENDPOINT,      // e.g. https://cloud.appwrite.io/v1
-  projectId: Constants.expoConfig.extra.APPWRITE_PROJECT,      // your project ID
-  platform: "com.crypto.news",                                 // your Android bundle ID
-  databaseId: Constants.expoConfig.extra.APPWRITE_DATABASE_ID, // e.g. databaseId
-  latestCollectionId: Constants.expoConfig.extra.APPWRITE_COLLECTION_ID,          // e.g. articles
-  editorsCollectionId: Constants.expoConfig.extra.APPWRITE_EDITORS_COLLECTION_ID, // e.g. editorsPickArticles
-  userCollectionId:"userCollectionId"
+  endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
+  projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT,
+  platform: "com.crypto.news",
+  databaseId: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
+  latestCollectionId: process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID,
+  editorsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_EDITORS_COLLECTION_ID,
+  userCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USER_COLLECTION_ID // Use the prefixed variable
 };
 
 // ——— Initialize Appwrite SDK ———
